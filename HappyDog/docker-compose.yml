@@ -1,0 +1,58 @@
+services:
+  happydog-web: #web front-end application
+    container_name: happydog-web
+    build: 
+      context: ./frontend
+      target: ${BUILD_TARGET:-dev}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - happydog-backend
+      - dogbreed-recognition
+    volumes:
+      - happydog-web:/app
+      - /app/node_modules #exclude node_modules
+    restart: always
+
+  happydog-backend: #python flask api to use model
+    container_name: happydog-backend
+    build: 
+      context: ./backend/model-api
+      target: ${BUILD_TARGET:-dev}
+    ports:
+      - "5000:5000"
+      - "5678:5678"
+    depends_on:
+      - dogbreed-recognition
+    volumes:
+      - happydog-backend:/app
+      - shared-data:/app/shared-data
+    restart: always
+    #runtime: nvidia #enable GPU access (only nvidia)
+  
+  dogbreed-recognition: #python model back-end application
+    container_name: dogbreed-recognition
+    build:
+      context: ./backend/model-trainer
+      target: ${BUILD_TARGET:-dev}
+    ports:
+      - "6000:6000"
+      - "6678:6678"
+    volumes:
+      - happydog-model:/app
+      - shared-data:/app/shared-data
+    restart: always
+    #runtime: nvidia #enable GPU access (only nvidia)
+
+  file-helper: #file-helper service to load data from localhost
+    container_name: file-helper
+    image: alpine
+    command: tail -f /dev/null
+    volumes:
+      - shared-data:/shared-data
+
+volumes:
+  happydog-web:
+  shared-data:
+  happydog-backend:
+  happydog-model:
